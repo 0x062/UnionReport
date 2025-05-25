@@ -28,7 +28,7 @@ const logger = {
     banner: () => {
         console.log(`${colors.cyan}${colors.bold}`);
         console.log(`---------------------------------------------`);
-        console.log(`   Union Testnet OOP Bot - Recode By 0x062  `);
+        console.log(`   Union Testnet Bot - Recode By 0x062  `);
         console.log(`---------------------------------------------${colors.reset}`);
         console.log();
     }
