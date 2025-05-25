@@ -180,34 +180,37 @@ class UnionBot {
     }
 
     async _checkBalanceAndApprove() {
-        try {
-            const balance = await this.usdcContract.balanceOf(this.wallet.address);
-            // Anda bisa menyesuaikan jumlah minimal jika diperlukan
-            if (balance === 0n) {
-                logger.error(`${this.wallet.address} tidak punya USDC. Mohon isi saldo!`);
-                return false;
-            }
-            logger.info(`Saldo USDC: ${ethers.utils.formatUnits(balance, 6)}`);
-
-            const allowance = await this.usdcContract.allowance(this.wallet.address, CONTRACT_ADDRESS);
-            // Cek jika allowance lebih kecil dari balance (atau jumlah minimal yang ingin Anda transfer)
-            if (allowance < balance) {
-                logger.loading(`USDC belum di-approve atau kurang. Mengirim transaksi approve...`);
-                const approveAmount = ethers.MaxUint256;
-                const tx = await this.usdcContract.approve(CONTRACT_ADDRESS, approveAmount);
-                logger.loading(`Menunggu konfirmasi approve... ${explorer.tx(tx.hash)}`);
-                const receipt = await tx.wait();
-                logger.success(`Approve berhasil: ${explorer.tx(receipt.hash)}`);
-                await delay(5000); // Beri jeda setelah approve
-            } else {
-                logger.info("USDC sudah di-approve.");
-            }
-            return true;
-        } catch (err) {
-            logger.error(`Cek Saldo/Approve Gagal: ${err.message}`);
+    try {
+        const balance = await this.usdcContract.balanceOf(this.wallet.address);
+        if (balance === 0n) {
+            logger.error(`${this.wallet.address} tidak punya USDC. Mohon isi saldo!`);
             return false;
         }
+        logger.info(`Saldo USDC: ${ethers.utils.formatUnits(balance, 6)}`);
+
+        const allowance = await this.usdcContract.allowance(this.wallet.address, CONTRACT_ADDRESS);
+        if (allowance < balance) { 
+            logger.loading(`USDC belum di-approve atau kurang. Mengirim transaksi approve...`);
+            
+            // !! PERUBAHAN DI SINI !!
+            const approveAmount = ethers.constants.MaxUint256; // Gunakan ethers.constants.MaxUint256
+
+            const tx = await this.usdcContract.approve(CONTRACT_ADDRESS, approveAmount);
+            logger.loading(`Menunggu konfirmasi approve... ${explorer.tx(tx.hash)}`);
+            const receipt = await tx.wait();
+            logger.success(`Approve berhasil: ${explorer.tx(receipt.hash)}`);
+            await delay(5000); 
+        } else {
+            logger.info("USDC sudah di-approve.");
+        }
+        return true;
+    } catch (err) {
+        // Log error yang lebih detail jika perlu
+        logger.error(`Cek Saldo/Approve Gagal: ${err.message}`);
+        console.error(err); // <-- Tambahkan ini untuk melihat detail error di console
+        return false;
     }
+}
 
     _buildOperand(destination) {
         const senderHex = this.wallet.address.slice(2).toLowerCase();
