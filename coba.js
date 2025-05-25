@@ -289,55 +289,72 @@ class UnionBot {
         }
     }
 
-    async runOnce() {
-        try {
-            const destinations = ['babylon', 'holesky'];
-            const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
-            logger.info(`Memulai eksekusi tunggal (OOP). Tujuan: ${randomDest}`);
-
-            const success = await this.send(randomDest);
-            return success;
-
-        } catch (error) {
-            logger.error(`Error tak terduga di runOnce: ${error.message}`);
-            console.error(error);
-            return false;
-        }
-    }
 }
 
-// =========================================================================
-// FUNGSI MAIN
-// =========================================================================
-
 async function main() {
-    logger.banner(); // Tampilkan banner sekali
+    logger.banner();
 
     process.on('SIGINT', () => {
         logger.info('Sinyal keluar diterima. Keluar dengan baik.');
         process.exit(0);
     });
 
+    const JUMLAH_TRANSAKSI = 10; // <-- Tetapkan jumlah transaksi di sini
+    const JEDA_ANTAR_TRANSAKSI_MS = 5000; // 30 detik (30 * 1000)
+
     try {
+        // Inisialisasi Bot
         const bot = new UnionBot(
             process.env.PRIVATE_KEY_1,
             process.env.BABYLON_ADDRESS_1
         );
-        const success = await bot.runOnce();
 
-        if (success) {
-            logger.success("Eksekusi bot selesai dengan sukses.");
-            process.exit(0);
-        } else {
-            logger.error("Eksekusi bot gagal atau dilewati.");
-            process.exit(1);
+        let successCount = 0;
+        let failureCount = 0;
+
+        // Loop sebanyak JUMLAH_TRANSAKSI
+        for (let i = 1; i <= JUMLAH_TRANSAKSI; i++) {
+            logger.step(`================ Transaksi ${i}/${JUMLAH_TRANSAKSI} ================`);
+
+            // Pilih tujuan acak di setiap iterasi
+            const destinations = ['babylon', 'holesky'];
+            const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
+            logger.info(`Memulai transaksi ke-${i}. Tujuan: ${randomDest}`);
+
+            // Kirim transaksi (memanggil bot.send langsung)
+            const success = await bot.send(randomDest);
+
+            if (success) {
+                successCount++;
+                logger.success(`Transaksi ke-${i} Berhasil!`);
+            } else {
+                failureCount++;
+                logger.error(`Transaksi ke-${i} Gagal atau Dilewati.`);
+            }
+
+            // Beri jeda jika bukan transaksi terakhir
+            if (i < JUMLAH_TRANSAKSI) {
+                logger.loading(`Menunggu ${JEDA_ANTAR_TRANSAKSI_MS / 1000} detik sebelum transaksi berikutnya...`);
+                await delay(JEDA_ANTAR_TRANSAKSI_MS);
+            }
+            console.log(''); // Beri spasi antar log transaksi
         }
 
+        // Tampilkan ringkasan
+        logger.info("================ RINGKASAN ================");
+        logger.success(`Total Berhasil: ${successCount}`);
+        logger.error(`Total Gagal   : ${failureCount}`);
+        logger.info("=========================================");
+
+        // Keluar dengan status 0 (sukses) karena script telah selesai menjalankan tugasnya
+        process.exit(0);
+
     } catch (error) {
-        logger.error(`Inisialisasi atau eksekusi bot gagal total: ${error.message}`);
-        process.exit(1);
+        logger.error(`Terjadi error fatal di main: ${error.message}`);
+        console.error(error);
+        process.exit(1); // Keluar dengan status 1 jika ada error fatal
     }
 }
 
-// Jalankan script
+// Panggil fungsi main
 main();
