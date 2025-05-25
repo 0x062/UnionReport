@@ -14,22 +14,6 @@ const colors = {
   bold: "\x1b[1m"
 };
 
-const logger = {
-  info: (msg) => console.log(`${colors.green}[âœ“] ${msg}${colors.reset}`),
-  warn: (msg) => console.log(`${colors.yellow}[âš ] ${msg}${colors.reset}`),
-  error: (msg) => console.log(`${colors.red}[âœ—] ${msg}${colors.reset}`),
-  success: (msg) => console.log(`${colors.green}[âœ…] ${msg}${colors.reset}`),
-  loading: (msg) => console.log(`${colors.cyan}[âŸ³] ${msg}${colors.reset}`),
-  step: (msg) => console.log(`${colors.white}[âž¤] ${msg}${colors.reset}`),
-  banner: () => {
-    console.log(`${colors.cyan}${colors.bold}`);
-    console.log(`---------------------------------------------`);
-    console.log(`  Union Testnet Auto Bot - Airdrop Insiders  `);
-    console.log(`---------------------------------------------${colors.reset}`);
-    console.log();
-  }
-};
-
 const UCS03_ABI = [
   {
     inputs: [
@@ -277,57 +261,54 @@ async function sendFromWallet(walletInfo, maxTransaction, destination) {
 }
 
 async function main() {
-  header();
 
-  // Load 1 wallet seperti biasa
-  const wallets = [];
-  const pk = process.env.PRIVATE_KEY_1;
-  if (!pk) {
-    logger.error('No PRIVATE_KEY_1 in .env');
-    process.exit(1);
-  }
-  wallets.push({ name: 'Wallet1', privatekey: pk, babylonAddress: process.env.BABYLON_ADDRESS_1 || '' });
+    // 2. Siapkan penanganan jika script dihentikan manual (Ctrl+C)
+    process.on('SIGINT', () => {
+        logger.info('Exit signal received. Exiting gracefully.');
+        process.exit(0);
+    });
 
-  // === LOGIKA DAILY LIMIT ===
-  const dailyLimit = 20;          // maks 10 tx per 24 jam
-  let dailyCount = 0;             // counter transaksi hari ini
-  let dayStart = Date.now();      // timestamp awal periode 24 jam
+    // 3. Gunakan try...catch untuk menangani error tak terduga
+    try {
+        // 4. Muat informasi wallet dari .env
+        const wallets = [];
+        const pk = process.env.PRIVATE_KEY_1;
+        if (!pk) {
+            logger.error('No PRIVATE_KEY_1 in .env. Exiting.');
+            process.exit(1); // Keluar jika kunci privat tidak ada
+        }
+        wallets.push({
+            name: 'Wallet1',
+            privatekey: pk,
+            babylonAddress: process.env.BABYLON_ADDRESS_1 || ''
+        });
 
-  // Tangkap Ctrl+C agar keluar dengan rapi
-  process.on('SIGINT', () => {
-    logger.info('Exit signal received.');
-    rl.close();
-    process.exit(0);
-  });
+        // 5. Pilih wallet (saat ini hanya satu) dan tujuan acak
+        const walletInfo = wallets[0];
+        const destinations = ['babylon', 'holesky'];
+        const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
 
-  // Infinite loopâ€”akan reset tiap 24 jam
-  while (true) {
-    // 1) Jika sudah di atas limit, tunggu sampai 24 jam penuh:
-    if (dailyCount >= dailyLimit) {
-      const now = Date.now();
-      const elapsed = now - dayStart;                     // ms yang udah berjalan
-      const waitFor = Math.max(0, 8*60*60*1000 - elapsed);
-      const minutes = Math.ceil(waitFor/1000/60);
-      logger.info(`Reached ${dailyLimit} tx. Sleeping for ~${minutes} minutes until next 24h window.`);
-      await delay(waitFor);
+        logger.info(`Starting single transaction run. Destination: ${randomDest}`);
 
-      // reset periode
-      dayStart = Date.now();
-      dailyCount = 0;
+        // 6. Panggil fungsi untuk mengirim satu transaksi
+        const success = await sendSingleTransaction(walletInfo, randomDest);
+
+        // 7. Keluar (exit) berdasarkan hasil transaksi
+        if (success) {
+            logger.success("Transaction process completed successfully for this run.");
+            process.exit(0); // Kode 0: Sukses
+        } else {
+            logger.error("Transaction process failed or was skipped for this run.");
+            process.exit(1); // Kode 1: Gagal
+        }
+
+    } catch (error) {
+        // 8. Tangani jika ada error global saat eksekusi
+        logger.error(`An unexpected error occurred in main: ${error.message}`);
+        console.error(error); // Tampilkan detail error di console
+        process.exit(1); // Keluar dengan kode error
     }
-
-    // 2) Lakukan transaksi sekali untuk wallet tunggal
-    const walletInfo = wallets[0];
-    const destinations = ['babylon', 'holesky'];
-    const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
-    await sendFromWallet(walletInfo, 1, randomDest);
-    logger.info(`Pilih random destination: ${randomDest}`);
-    dailyCount++;
-    logger.info(`${dailyCount}/${dailyLimit} transactions done in this 24h window.`);
-
-    // 3) (opsional) jeda antar transaksiâ€”jika mau trans langsung berurutan, bisa skip ini
-    await delay(30000);  // misal 1 detik
-  }
 }
 
+// Jangan lupa untuk memanggil fungsi main di akhir script Anda:
 main();
