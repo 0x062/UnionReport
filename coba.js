@@ -1,11 +1,7 @@
-const fs = require('fs');
-const path = require('path');
 const { sendReport } = require('./telegramReporter');
 const { ethers } = require('ethers');
 const axios = require('axios');
 const moment = require('moment-timezone');
-const readline = require('readline');
-const { DirectSecp256k1HdWallet } = require('@cosmjs/proto-signing');
 require('dotenv').config();
 
 const colors = {
